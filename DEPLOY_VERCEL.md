@@ -79,6 +79,7 @@ File `vercel.json` di root direktori telah dikonfigurasi untuk:
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
+  "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "cleanUrls": true,
@@ -104,6 +105,21 @@ File `vercel.json` di root direktori telah dikonfigurasi untuk:
 
 ---
 
+## 🛠️ Mengatasi Error: `Command "npm run build" exited with 127`
+
+Jika sebelumnya Anda menemui error `exited with 127` di Vercel:
+- **Penyebab**: Kode exit 127 menandakan *"command not found"* (yaitu binary `vite` belum terpasang di folder `node_modules/.bin`). Hal ini terjadi karena Vercel melewatkan proses `npm install` atau mengalami konflik dependensi peer `esbuild` vs lockfile.
+- **Perbaikan yang telah dilakukan di repositori ini**:
+  1. Menghapus dependensi `esbuild` lama di `package.json` yang memicu konflik resolusi `npm`.
+  2. Menghasilkan file resmi **`package-lock.json`** yang valid dan terverifikasi untuk Node.js.
+  3. Menghapus file `bun.lock` agar Vercel mendeteksi `npm` secara murni tanpa ambiguitas runtime.
+  4. Menambahkan `"installCommand": "npm install"` secara eksplisit di file `vercel.json`.
+  5. Memperbarui `vite.config.ts` untuk kompatibilitas modern ES module tanpa warning `__dirname`.
+- **Langkah Anda Sekarang**:
+  Cukup push commit terbaru ini ke GitHub atau jalankan `npx vercel --prod` ulang. Vercel akan otomatis menjalankan `npm install` lalu menjalankan `npm run build` dengan sukses (Exit code 0).
+
+---
+
 ## 🔐 Akun Default untuk Login Pertama Kali
 
 Setelah aplikasi online di Vercel, Anda dapat langsung login menggunakan:
@@ -117,4 +133,5 @@ Setelah aplikasi online di Vercel, Anda dapat langsung login menggunakan:
 - **Agent**:
   - ID / NIK: NIK Agent dari 90+ roster yang tersedia (misal: `01127`, `02127`, dst.)
   - PIN Default: `127127`
+
 

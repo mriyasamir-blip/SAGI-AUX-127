@@ -1,14 +1,15 @@
-export type UserRole = 'ADMIN' | 'SPV' | 'AGENT';
+export type UserRole = 'ADMIN' | 'SPV' | 'OIC' | 'AGENT';
 
 export type AuxStatusType =
   | 'READY'
   | 'BREAK'
   | 'TOILET'
   | 'SHOLAT'
-  | 'BRIEFING'
+  | 'TRAINING'
   | 'COACHING'
-  | 'ACW'
-  | 'OFFLINE';
+  | 'OFFLINE'
+  | 'BRIEFING'
+  | 'ACW';
 
 export interface UserProfile {
   id: string; // NIK or unique ID
@@ -57,12 +58,14 @@ export interface AuxLogEntry {
 }
 
 export interface AuxThresholdConfig {
-  BREAK: number; // minutes, e.g. 60
-  TOILET: number; // minutes, e.g. 10
-  SHOLAT: number; // minutes, e.g. 20
-  BRIEFING: number; // minutes, e.g. 30
+  BREAK: number; // minutes
+  TOILET: number; // minutes
+  SHOLAT: number; // minutes
+  TRAINING: number; // minutes
   COACHING: number; // minutes, e.g. 45
-  ACW: number; // minutes, e.g. 5
+  COMBINED_ROUTINE_QUOTA: number; // total quota in minutes for (BREAK + SHOLAT + TOILET), default 75
+  BRIEFING?: number;
+  ACW?: number;
 }
 
 export interface SystemConfig {

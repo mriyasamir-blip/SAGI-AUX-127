@@ -4,7 +4,7 @@ export const RAW_ROSTER_DATA = [
   { nik: '20250005', name: 'Pustaka Adam', gender: 'Pria', shift: 1, roleDesc: 'Manager', spv: 'Muhammad Nendi' },
   { nik: '20250013', name: 'Muhammad Riyas Amir', gender: 'Pria', shift: 1, roleDesc: 'PMO/SPV', spv: 'Pustaka Adam' },
   { nik: '20250017', name: 'Edhi Sukriyanto', gender: 'Pria', shift: 3, roleDesc: 'Supervisor', spv: 'Pustaka Adam' },
-  { nik: '202601193', name: 'Wahyu Astuti', gender: 'Wanita', shift: 15, roleDesc: 'Inbound', spv: 'Pustaka Adam' },
+  { nik: '202601193', name: 'Wahyu Astuti', gender: 'Wanita', shift: 15, roleDesc: 'OIC / Inbound', spv: 'Pustaka Adam' },
   { nik: '202501012', name: 'Dira Ranisa Yustisia', gender: 'Wanita', shift: 1, roleDesc: 'Inbound', spv: 'Kusuma Warastra' },
   { nik: '202501007', name: 'Cecilia Novica Sari', gender: 'Wanita', shift: 1, roleDesc: 'Inbound', spv: 'Kusuma Warastra' },
   { nik: '202501100', name: 'Devi Triyani', gender: 'Wanita', shift: 3, roleDesc: 'Inbound', spv: 'Kusuma Warastra' },
@@ -31,7 +31,7 @@ export const RAW_ROSTER_DATA = [
   { nik: '202601176', name: 'Siti Holilah', gender: 'Wanita', shift: 9, roleDesc: 'Inbound', spv: 'Muhammad Rizki Azhari' },
   { nik: '202601177', name: 'Nurmayati', gender: 'Wanita', shift: 9, roleDesc: 'Inbound', spv: 'Muhammad Rizki Azhari' },
   { nik: '202601197', name: 'Marnianti Pasaribu', gender: 'Wanita', shift: 16, roleDesc: 'Inbound', spv: 'Muhammad Rizki Azhari' },
-  { nik: '202501078', name: 'Rizka Suryaningsih Haras', gender: 'Wanita', shift: 2, roleDesc: 'Non Voice', spv: 'Arif Kurniawan' },
+  { nik: '202501078', name: 'Rizka Suryaningsih Haras', gender: 'Wanita', shift: 2, roleDesc: 'OIC / Non Voice', spv: 'Arif Kurniawan' },
   { nik: '202501097', name: 'Antoni', gender: 'Pria', shift: 3, roleDesc: 'Non Voice', spv: 'Arif Kurniawan' },
   { nik: '202501079', name: 'Rizki Fadhilah', gender: 'Pria', shift: 2, roleDesc: 'Non Voice', spv: 'Mudrik Reza Bahrain' },
   { nik: '202501004', name: 'Audy', gender: 'Wanita', shift: 1, roleDesc: 'Non Voice', spv: 'Arif Kurniawan' },
@@ -56,7 +56,7 @@ export const RAW_ROSTER_DATA = [
   { nik: '202601170', name: "Wildan Khuril'ain", gender: 'Pria', shift: 7, roleDesc: 'Non Voice', spv: 'Mudrik Reza Bahrain' },
   { nik: '202601194', name: 'Dinu Awaludin', gender: 'Pria', shift: 15, roleDesc: 'Non Voice', spv: 'Mudrik Reza Bahrain' },
   { nik: '202601192', name: 'Irnawaty Rosyadi', gender: 'Wanita', shift: 15, roleDesc: 'Non Voice', spv: 'Mudrik Reza Bahrain' },
-  { nik: '202601190', name: 'Hadi Kurnia', gender: 'Pria', shift: 12, roleDesc: 'Outbound', spv: 'Elisa Kurniaty Pakpahan' },
+  { nik: '202601190', name: 'Hadi Kurnia', gender: 'Pria', shift: 12, roleDesc: 'OIC / Outbound', spv: 'Elisa Kurniaty Pakpahan' },
   { nik: '202501038', name: 'Rusnita', gender: 'Wanita', shift: 1, roleDesc: 'Outbound', spv: 'Elisa Kurniaty Pakpahan' },
   { nik: '202501101', name: 'Dian Andriani', gender: 'Wanita', shift: 3, roleDesc: 'Outbound', spv: 'Elisa Kurniaty Pakpahan' },
   { nik: '202501026', name: 'Le Andhika', gender: 'Wanita', shift: 1, roleDesc: 'Outbound', spv: 'Elisa Kurniaty Pakpahan' },
@@ -160,10 +160,18 @@ export function buildInitialUsers(): UserProfile[] {
     const username = generateUsername(item.name, seenUsernames);
     
     // Determine Role
-    let role: 'ADMIN' | 'SPV' | 'AGENT' = 'AGENT';
+    let role: 'ADMIN' | 'SPV' | 'OIC' | 'AGENT' = 'AGENT';
     const roleDescLower = item.roleDesc.toLowerCase();
+    const nameLower = item.name.toLowerCase();
     
-    if (roleDescLower.includes('admin')) {
+    if (
+      nameLower.includes('wahyu astuti') ||
+      nameLower.includes('hadi kurnia') ||
+      nameLower.includes('rizka suryaningsih') ||
+      roleDescLower.includes('oic')
+    ) {
+      role = 'OIC';
+    } else if (roleDescLower.includes('admin')) {
       role = 'ADMIN';
     } else if (
       roleDescLower.includes('supervisor') ||
@@ -197,11 +205,11 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   id: 'default',
   auxThresholds: {
     BREAK: 60, // 60 minutes
-    TOILET: 10, // 10 minutes
-    SHOLAT: 20, // 20 minutes
-    BRIEFING: 30, // 30 minutes
-    COACHING: 45, // 45 minutes
-    ACW: 5, // 5 minutes
+    TOILET: 15, // 15 minutes per session (ketentuan jadwal dihapus)
+    SHOLAT: 20, // 20 minutes (ketentuan jadwal dihapus)
+    TRAINING: 60, // 60 minutes (pengganti Briefing)
+    COACHING: 45, // Jatah 45 Menit terpisah
+    COMBINED_ROUTINE_QUOTA: 75, // Kuota gabungan AUX Istirahat, Pray & Toilet: 75 Menit
   },
   shiftSchedule: {
     1: { name: 'Shift 1', hours: '07:00 - 15:00' },

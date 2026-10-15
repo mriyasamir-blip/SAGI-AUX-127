@@ -42,6 +42,29 @@ class StoreService {
     if (!cachedUsers || cachedUsers.length === 0) {
       cachedUsers = this.initialUsers;
       this.setLocalUsers(cachedUsers);
+    } else {
+      let updatedOic = false;
+      cachedUsers = cachedUsers.map((u) => {
+        const nameL = u.name.toLowerCase();
+        if (
+          nameL.includes('wahyu astuti') ||
+          nameL.includes('hadi kurnia') ||
+          nameL.includes('rizka suryaningsih')
+        ) {
+          if (u.role !== 'OIC') {
+            updatedOic = true;
+            return {
+              ...u,
+              role: 'OIC' as const,
+              division: u.division.includes('OIC') ? u.division : `OIC / ${u.division}`,
+            };
+          }
+        }
+        return u;
+      });
+      if (updatedOic) {
+        this.setLocalUsers(cachedUsers);
+      }
     }
 
     let cachedConfig = this.getLocalConfig();
@@ -74,7 +97,7 @@ class StoreService {
           initialStatus = 'SHOLAT';
           isOnline = true;
         } else if (idx === 8) {
-          initialStatus = 'ACW';
+          initialStatus = 'TRAINING';
           isOnline = true;
         } else if (idx < 15) {
           initialStatus = 'READY';
@@ -177,28 +200,48 @@ class StoreService {
     }
   }
 
-  // --- Firestore Seed Check ---
+  // --- Firestore Seed & Sync ---
   private async syncSeedToFirestore() {
     try {
-      const snap = await getDocs(collection(db, 'system_config'));
-      if (snap.empty) {
-        // Seed config
+      // 1. Verify and seed system configuration
+      const configSnap = await getDocs(collection(db, 'system_config'));
+      if (configSnap.empty) {
         await setDoc(doc(db, 'system_config', 'default'), DEFAULT_SYSTEM_CONFIG);
+      }
 
-        // Seed users (batch or sequential subset to respect quota)
-        const localUsers = this.getLocalUsers();
+      // 2. Verify and seed users collection
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const localUsers = this.getLocalUsers();
+      if (usersSnap.empty) {
         for (const u of localUsers) {
           await setDoc(doc(db, 'users', u.id), u, { merge: true });
         }
+      } else {
+        const existingUserIds = new Set(usersSnap.docs.map((d) => d.id));
+        for (const u of localUsers) {
+          if (!existingUserIds.has(u.id)) {
+            await setDoc(doc(db, 'users', u.id), u, { merge: true });
+          }
+        }
+      }
 
-        // Seed initial agent statuses
-        const localStatuses = this.getLocalStatuses();
+      // 3. Verify and seed agent statuses collection
+      const statusSnap = await getDocs(collection(db, 'agent_status'));
+      const localStatuses = this.getLocalStatuses();
+      if (statusSnap.empty) {
         for (const [agentId, status] of Object.entries(localStatuses)) {
           await setDoc(doc(db, 'agent_status', agentId), status, { merge: true });
         }
+      } else {
+        const existingStatusIds = new Set(statusSnap.docs.map((d) => d.id));
+        for (const [agentId, status] of Object.entries(localStatuses)) {
+          if (!existingStatusIds.has(agentId)) {
+            await setDoc(doc(db, 'agent_status', agentId), status, { merge: true });
+          }
+        }
       }
     } catch (err) {
-      handleFirestoreError(err, OperationType.GET, 'system_config');
+      handleFirestoreError(err, OperationType.GET, 'sync_initial_seed');
     }
   }
 

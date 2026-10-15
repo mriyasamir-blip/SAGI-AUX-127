@@ -8,6 +8,7 @@ import { AdminConfig } from './components/AdminConfig';
 import { AdminReports } from './components/AdminReports';
 import { LoginModal } from './components/LoginModal';
 import { NotificationBanner } from './components/NotificationBanner';
+import { WelcomeScreen } from './components/WelcomeScreen';
 import { Loader2 } from 'lucide-react';
 
 const AppContent: React.FC = () => {
@@ -20,27 +21,39 @@ const AppContent: React.FC = () => {
     if (currentUser) {
       if (currentUser.role === 'AGENT') {
         setCurrentTab('agent');
-      } else if (currentUser.role === 'SPV') {
+      } else if (currentUser.role === 'SPV' || currentUser.role === 'OIC') {
         setCurrentTab('spv');
       } else if (currentUser.role === 'ADMIN' && currentTab === 'agent') {
-        // Keep current or set to spv
+        setCurrentTab('spv');
       }
-    } else {
-      setIsLoginModalOpen(true);
     }
   }, [currentUser]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
-        <span className="text-xs font-mono">Memuat Sistem AUX SAGI 127...</span>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-slate-500 gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+        <span className="text-xs font-mono font-medium">Memuat Sistem AUX SAGI 127...</span>
       </div>
     );
   }
 
+  // If user is not logged in, show Welcome Screen (never expose main dashboard)
+  if (!currentUser) {
+    return (
+      <>
+        <WelcomeScreen onOpenLoginModal={() => setIsLoginModalOpen(true)} />
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onSuccess={() => setIsLoginModalOpen(false)}
+        />
+      </>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500/20 selection:text-emerald-300">
+    <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col selection:bg-emerald-500/20 selection:text-emerald-800">
       {/* Top Bar */}
       <Navbar
         currentTab={currentTab}
@@ -48,25 +61,23 @@ const AppContent: React.FC = () => {
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
       />
 
-      {/* Main View Port */}
+      {/* Main View Port for Authenticated Users */}
       <main className="flex-1 pb-16">
         {currentTab === 'agent' && <AgentDashboard />}
         {currentTab === 'spv' && <SupervisorDashboard />}
-        {currentTab === 'users' && <AdminUserManagement />}
-        {currentTab === 'config' && <AdminConfig />}
-        {currentTab === 'reports' && <AdminReports />}
+        {currentTab === 'users' && currentUser.role === 'ADMIN' && <AdminUserManagement />}
+        {currentTab === 'config' && currentUser.role === 'ADMIN' && <AdminConfig />}
+        {currentTab === 'reports' && currentUser.role === 'ADMIN' && <AdminReports />}
       </main>
 
       {/* Real-time Fleet Status Notifications */}
       <NotificationBanner />
 
-      {/* Role-based Authentication Modal */}
+      {/* Modal for Switching / Re-authenticating */}
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
-        onSuccess={() => {
-          setIsLoginModalOpen(false);
-        }}
+        onSuccess={() => setIsLoginModalOpen(false)}
       />
     </div>
   );

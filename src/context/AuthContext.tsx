@@ -56,11 +56,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           } catch {
             // ignore
           }
-        } else if (updatedUsers.length > 0 && !currentUser) {
-          // Default to first Admin or SPV for instant seamless testing
-          const defaultAdmin = updatedUsers.find((u) => u.role === 'ADMIN') || updatedUsers[0];
-          setCurrentUser(defaultAdmin);
-          localStorage.setItem(CURRENT_USER_SESSION_KEY, JSON.stringify(defaultAdmin));
         }
       });
 
