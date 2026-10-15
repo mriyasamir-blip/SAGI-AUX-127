@@ -1,0 +1,8 @@
+{
+  "name": "SAGI 127 - AUX \u0026 Agent Monitoring",
+  "description": "Aplikasi AUX real-time dan monitoring kinerja agent Inbound \u0026 Outbound SAGI 127 berbasis role Admin, SPV, dan Agent dengan sinkronisasi Firestore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

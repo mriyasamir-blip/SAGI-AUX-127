@@ -1,11 +1,35 @@
-<div align="center">
+# SAGI 127 - AUX & Agent Monitoring System
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Aplikasi monitoring AUX dan status real-time untuk contact center SAGI 127 (Inbound & Outbound) berbasis Vite, React, Tailwind CSS, dan Firebase Firestore.
 
-  <h1>Built with AI Studio</h2>
+## 🚀 Fitur Utama
+- **Role-based Authentication**: Hak akses spesifik untuk Admin, Supervisor (SPV), dan Agent.
+- **Real-time AUX Tracking**: Pelacakan status AUX (Istirahat, Sholat, Briefing, Toilet, Coaching, dll.) secara langsung.
+- **Roster & Penjadwalan**: Manajemen 90+ staf dan agen contact center dengan status shift.
+- **Peringatan & Alarm AUX**: Indikator durasi AUX dan peringatan batas waktu.
+- **Penyimpanan Cloud Real-time**: Didukung Google Cloud Firestore dengan sinkronisasi instan antar perangkat.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## 🌐 Deploy ke Vercel (vercel.app)
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+Proyek ini telah dikonfigurasi lengkap dengan file `vercel.json` sehingga dapat langsung dideploy ke Vercel tanpa perlu pengaturan rumit.
 
-</div>
+Untuk panduan lengkap langkah demi langkah:
+👉 **[Lihat Panduan Deploy Vercel (DEPLOY_VERCEL.md)](./DEPLOY_VERCEL.md)**
+
+### Langkah Cepat:
+1. Push repository ini ke GitHub.
+2. Buka [Vercel](https://vercel.com) > **"Add New Project"** > Import repository ini.
+3. Klik **"Deploy"** (pengaturan build `Vite`, output `dist`, dan SPA rewrites sudah terkonfigurasi otomatis).
+
+## 🛠️ Pengembangan Lokal
+
+```bash
+# Install dependencies
+npm install
+
+# Jalankan development server
+npm run dev
+
+# Build untuk production
+npm run build
+```

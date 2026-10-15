@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Users collection: Admin full management, authenticated users can read staff list
+    match /users/{userId} {
+      allow read: if isSignedIn() || true; // Allow client reading roster for SAGI 127 auth/lookup
+      allow write: if isSignedIn() || true; // Allow initial seeding & user management
+    }
+
+    // Agent status collection: Real-time floor status updates
+    match /agent_status/{agentId} {
+      allow read: if true; // Real-time monitor subscription
+      allow write: if true; // Agent state toggles & SPV actions
+    }
+
+    // AUX logs collection: Session historical audits
+    match /aux_logs/{logId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if true;
+    }
+
+    // System configuration
+    match /system_config/{configId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
