@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   setDoc,
+  deleteDoc,
   getDocs,
   onSnapshot,
   query,
@@ -16,12 +17,17 @@ import {
   SystemConfig,
   AuxStatusType,
 } from '../types';
-import { buildInitialUsers, DEFAULT_SYSTEM_CONFIG } from '../data/initialRoster';
+import {
+  CLEAN_INITIAL_USERS,
+  buildInitialUsers,
+  buildFullRosterUsers,
+  DEFAULT_SYSTEM_CONFIG,
+} from '../data/initialRoster';
 
-const LOCAL_STORAGE_USERS_KEY = 'sagi127_users_v1';
-const LOCAL_STORAGE_STATUS_KEY = 'sagi127_status_v1';
-const LOCAL_STORAGE_LOGS_KEY = 'sagi127_logs_v1';
-const LOCAL_STORAGE_CONFIG_KEY = 'sagi127_config_v1';
+const LOCAL_STORAGE_USERS_KEY = 'sagi127_users_v2';
+const LOCAL_STORAGE_STATUS_KEY = 'sagi127_status_v2';
+const LOCAL_STORAGE_LOGS_KEY = 'sagi127_logs_v2';
+const LOCAL_STORAGE_CONFIG_KEY = 'sagi127_config_v2';
 
 class StoreService {
   private initialUsers: UserProfile[] = [];
@@ -37,34 +43,41 @@ class StoreService {
   public async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
+    // Remove legacy v1 demo data from previous sessions
+    try {
+      localStorage.removeItem('sagi127_users_v1');
+      localStorage.removeItem('sagi127_status_v1');
+      localStorage.removeItem('sagi127_logs_v1');
+      localStorage.removeItem('sagi127_config_v1');
+    } catch {
+      // ignore
+    }
+
     // 1. Check local storage cache
     let cachedUsers = this.getLocalUsers();
     if (!cachedUsers || cachedUsers.length === 0) {
-      cachedUsers = this.initialUsers;
+      cachedUsers = [...CLEAN_INITIAL_USERS];
       this.setLocalUsers(cachedUsers);
     } else {
-      let updatedOic = false;
+      // Ensure Admin.s127 and Wahyu Astuti (OIC) exist
+      const hasAdmin = cachedUsers.some(
+        (u) => u.username.toLowerCase() === 'admin.s127' || u.id === 'ADMIN.S127'
+      );
+      if (!hasAdmin) {
+        cachedUsers.unshift(CLEAN_INITIAL_USERS[0]);
+      }
       cachedUsers = cachedUsers.map((u) => {
-        const nameL = u.name.toLowerCase();
-        if (
-          nameL.includes('wahyu astuti') ||
-          nameL.includes('hadi kurnia') ||
-          nameL.includes('rizka suryaningsih')
-        ) {
-          if (u.role !== 'OIC') {
-            updatedOic = true;
-            return {
-              ...u,
-              role: 'OIC' as const,
-              division: u.division.includes('OIC') ? u.division : `OIC / ${u.division}`,
-            };
-          }
+        if (u.name.toLowerCase().includes('wahyu astuti') || u.id === '202601193') {
+          return {
+            ...u,
+            role: 'OIC' as const,
+            division: 'OIC / Inbound',
+            password: 'sagi127',
+          };
         }
         return u;
       });
-      if (updatedOic) {
-        this.setLocalUsers(cachedUsers);
-      }
+      this.setLocalUsers(cachedUsers);
     }
 
     let cachedConfig = this.getLocalConfig();
@@ -73,54 +86,10 @@ class StoreService {
       this.setLocalConfig(cachedConfig);
     }
 
-    let cachedStatuses = this.getLocalStatuses();
-    if (!cachedStatuses || Object.keys(cachedStatuses).length === 0) {
-      // Default all agents to OFFLINE or initial state
-      const initialStatuses: Record<string, AgentRealtimeStatus> = {};
-      const now = new Date().toISOString();
-
-      cachedUsers.forEach((u, idx) => {
-        // Seed first 12 active agents with realistic live statuses for demonstration
-        let initialStatus: AuxStatusType = 'OFFLINE';
-        let isOnline = false;
-
-        if (idx < 5) {
-          initialStatus = 'READY';
-          isOnline = true;
-        } else if (idx === 5) {
-          initialStatus = 'BREAK';
-          isOnline = true;
-        } else if (idx === 6) {
-          initialStatus = 'TOILET';
-          isOnline = true;
-        } else if (idx === 7) {
-          initialStatus = 'SHOLAT';
-          isOnline = true;
-        } else if (idx === 8) {
-          initialStatus = 'TRAINING';
-          isOnline = true;
-        } else if (idx < 15) {
-          initialStatus = 'READY';
-          isOnline = true;
-        }
-
-        initialStatuses[u.id] = {
-          agentId: u.id,
-          agentName: u.name,
-          nik: u.nik,
-          role: u.role,
-          division: u.division,
-          shiftNumber: u.shiftNumber,
-          supervisorName: u.supervisorName,
-          currentStatus: initialStatus,
-          statusStartedAt: new Date(Date.now() - (idx % 8) * 120000).toISOString(),
-          isOnline,
-          lastSeen: now,
-          updatedAt: now,
-        };
-      });
-
-      this.setLocalStatuses(initialStatuses);
+    // Agent statuses start clean (empty), populated dynamically on user login
+    const cachedStatuses = this.getLocalStatuses();
+    if (!cachedStatuses) {
+      this.setLocalStatuses({});
     }
 
     this.isInitialized = true;
@@ -200,7 +169,7 @@ class StoreService {
     }
   }
 
-  // --- Firestore Seed & Sync ---
+  // --- Firestore Seed & Clean ---
   private async syncSeedToFirestore() {
     try {
       // 1. Verify and seed system configuration
@@ -209,36 +178,46 @@ class StoreService {
         await setDoc(doc(db, 'system_config', 'default'), DEFAULT_SYSTEM_CONFIG);
       }
 
-      // 2. Verify and seed users collection
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const localUsers = this.getLocalUsers();
-      if (usersSnap.empty) {
-        for (const u of localUsers) {
+      // Check if clean data migration has run
+      const cleanedKey = 'sagi127_clean_seeded_v2';
+      const hasCleaned = localStorage.getItem(cleanedKey);
+
+      if (!hasCleaned) {
+        // Delete all old dummy documents from users collection
+        const usersSnap = await getDocs(collection(db, 'users'));
+        for (const docSnap of usersSnap.docs) {
+          if (docSnap.id !== 'ADMIN.S127' && docSnap.id !== '202601193') {
+            await deleteDoc(doc(db, 'users', docSnap.id)).catch(() => {});
+          }
+        }
+
+        // Delete all old dummy statuses
+        const statusSnap = await getDocs(collection(db, 'agent_status'));
+        for (const docSnap of statusSnap.docs) {
+          await deleteDoc(doc(db, 'agent_status', docSnap.id)).catch(() => {});
+        }
+
+        // Delete all old dummy logs
+        const logsSnap = await getDocs(collection(db, 'aux_logs'));
+        for (const docSnap of logsSnap.docs) {
+          await deleteDoc(doc(db, 'aux_logs', docSnap.id)).catch(() => {});
+        }
+
+        // Write the clean initial users
+        for (const u of CLEAN_INITIAL_USERS) {
           await setDoc(doc(db, 'users', u.id), u, { merge: true });
         }
-      } else {
-        const existingUserIds = new Set(usersSnap.docs.map((d) => d.id));
-        for (const u of localUsers) {
-          if (!existingUserIds.has(u.id)) {
-            await setDoc(doc(db, 'users', u.id), u, { merge: true });
-          }
-        }
+
+        this.setLocalUsers(CLEAN_INITIAL_USERS);
+        this.setLocalStatuses({});
+        this.setLocalLogs([]);
+        localStorage.setItem(cleanedKey, 'true');
+        return;
       }
 
-      // 3. Verify and seed agent statuses collection
-      const statusSnap = await getDocs(collection(db, 'agent_status'));
-      const localStatuses = this.getLocalStatuses();
-      if (statusSnap.empty) {
-        for (const [agentId, status] of Object.entries(localStatuses)) {
-          await setDoc(doc(db, 'agent_status', agentId), status, { merge: true });
-        }
-      } else {
-        const existingStatusIds = new Set(statusSnap.docs.map((d) => d.id));
-        for (const [agentId, status] of Object.entries(localStatuses)) {
-          if (!existingStatusIds.has(agentId)) {
-            await setDoc(doc(db, 'agent_status', agentId), status, { merge: true });
-          }
-        }
+      // 2. Ensure clean users are always present in Firestore
+      for (const u of CLEAN_INITIAL_USERS) {
+        await setDoc(doc(db, 'users', u.id), u, { merge: true });
       }
     } catch (err) {
       handleFirestoreError(err, OperationType.GET, 'sync_initial_seed');
@@ -258,14 +237,13 @@ class StoreService {
       const unsubscribe = onSnapshot(
         collection(db, 'users'),
         (snapshot) => {
-          if (!snapshot.empty) {
-            const list: UserProfile[] = [];
-            snapshot.forEach((docSnap) => {
-              list.push(docSnap.data() as UserProfile);
-            });
-            this.setLocalUsers(list);
-            callback(list);
-          }
+          const list: UserProfile[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push(docSnap.data() as UserProfile);
+          });
+          const resultList = list.length > 0 ? list : CLEAN_INITIAL_USERS;
+          this.setLocalUsers(resultList);
+          callback(resultList);
         },
         (error) => {
           handleFirestoreError(error, OperationType.LIST, 'users');
@@ -290,15 +268,13 @@ class StoreService {
       const unsubscribe = onSnapshot(
         collection(db, 'agent_status'),
         (snapshot) => {
-          if (!snapshot.empty) {
-            const map: Record<string, AgentRealtimeStatus> = {};
-            snapshot.forEach((docSnap) => {
-              const data = docSnap.data() as AgentRealtimeStatus;
-              map[data.agentId] = data;
-            });
-            this.setLocalStatuses(map);
-            callback(map);
-          }
+          const map: Record<string, AgentRealtimeStatus> = {};
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data() as AgentRealtimeStatus;
+            map[data.agentId] = data;
+          });
+          this.setLocalStatuses(map);
+          callback(map);
         },
         (error) => {
           handleFirestoreError(error, OperationType.LIST, 'agent_status');
@@ -348,14 +324,12 @@ class StoreService {
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {
-          if (!snapshot.empty) {
-            const list: AuxLogEntry[] = [];
-            snapshot.forEach((docSnap) => {
-              list.push(docSnap.data() as AuxLogEntry);
-            });
-            this.setLocalLogs(list);
-            callback(list);
-          }
+          const list: AuxLogEntry[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push(docSnap.data() as AuxLogEntry);
+          });
+          this.setLocalLogs(list);
+          callback(list);
         },
         (error) => {
           handleFirestoreError(error, OperationType.LIST, 'aux_logs');
@@ -473,6 +447,76 @@ class StoreService {
       await setDoc(doc(db, 'system_config', 'default'), updated, { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'system_config/default');
+    }
+  }
+
+  /**
+   * Delete User Profile
+   */
+  public async deleteUserProfile(userId: string): Promise<void> {
+    const users = this.getLocalUsers().filter((u) => u.id !== userId);
+    this.setLocalUsers(users);
+
+    const statuses = this.getLocalStatuses();
+    if (statuses[userId]) {
+      delete statuses[userId];
+      this.setLocalStatuses(statuses);
+    }
+
+    try {
+      await deleteDoc(doc(db, 'users', userId));
+      await deleteDoc(doc(db, 'agent_status', userId)).catch(() => {});
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `users/${userId}`);
+    }
+  }
+
+  /**
+   * Reset / Clear all data back to clean state:
+   * Keeps Admin.s127 and Wahyu Astuti (OIC), deletes all agent statuses and AUX logs.
+   */
+  public async clearAllData(): Promise<void> {
+    try {
+      // 1. Clear agent_status in Firestore
+      const statusSnap = await getDocs(collection(db, 'agent_status'));
+      for (const d of statusSnap.docs) {
+        await deleteDoc(doc(db, 'agent_status', d.id)).catch(() => {});
+      }
+
+      // 2. Clear aux_logs in Firestore
+      const logsSnap = await getDocs(collection(db, 'aux_logs'));
+      for (const d of logsSnap.docs) {
+        await deleteDoc(doc(db, 'aux_logs', d.id)).catch(() => {});
+      }
+
+      // 3. Clean users collection: delete old users, keep only CLEAN_INITIAL_USERS
+      const usersSnap = await getDocs(collection(db, 'users'));
+      for (const d of usersSnap.docs) {
+        if (d.id !== 'ADMIN.S127' && d.id !== '202601193') {
+          await deleteDoc(doc(db, 'users', d.id)).catch(() => {});
+        }
+      }
+      for (const u of CLEAN_INITIAL_USERS) {
+        await setDoc(doc(db, 'users', u.id), u, { merge: true });
+      }
+
+      // 4. Update local cache
+      this.setLocalUsers([...CLEAN_INITIAL_USERS]);
+      this.setLocalStatuses({});
+      this.setLocalLogs([]);
+    } catch (err) {
+      console.error('Error clearing data:', err);
+    }
+  }
+
+  /**
+   * Load full roster from template
+   */
+  public async loadFullRoster(): Promise<void> {
+    const fullUsers = buildFullRosterUsers();
+    this.setLocalUsers(fullUsers);
+    for (const u of fullUsers) {
+      await setDoc(doc(db, 'users', u.id), u, { merge: true });
     }
   }
 

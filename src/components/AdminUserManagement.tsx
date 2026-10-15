@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserProfile, UserRole } from '../types';
-import { Search, UserPlus, Edit2, Key, Check, X, Shield, Users } from 'lucide-react';
+import { Search, UserPlus, Edit2, Key, Check, X, Trash2, RotateCcw, DownloadCloud, AlertTriangle } from 'lucide-react';
 
 export const AdminUserManagement: React.FC = () => {
-  const { users, updateUserRoleOrShift } = useAuth();
+  const { users, updateUserRoleOrShift, deleteUser, clearAllData, loadFullRoster } = useAuth();
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedRole, setSelectedRole] = useState<string>('ALL');
   const [selectedDivision, setSelectedDivision] = useState<string>('ALL');
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const [isNewUserModal, setIsNewUserModal] = useState<boolean>(false);
+  const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string>('');
 
   // New user form state
@@ -45,9 +47,30 @@ export const AdminUserManagement: React.FC = () => {
   };
 
   const handleResetPassword = async (user: UserProfile) => {
-    const updated = { ...user, password: 'sagi 127' };
+    const updated = { ...user, password: 'sagi127' };
     await updateUserRoleOrShift(updated);
-    setFeedbackMsg(`Password untuk ${user.name} berhasil direset ke "sagi 127".`);
+    setFeedbackMsg(`Password untuk ${user.name} berhasil direset ke "sagi127".`);
+    setTimeout(() => setFeedbackMsg(''), 4000);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    await deleteUser(userToDelete.id);
+    setFeedbackMsg(`Akun ${userToDelete.name} (${userToDelete.username}) berhasil dihapus.`);
+    setUserToDelete(null);
+    setTimeout(() => setFeedbackMsg(''), 4000);
+  };
+
+  const handleClearAllData = async () => {
+    await clearAllData();
+    setShowClearConfirm(false);
+    setFeedbackMsg('Semua data berhasil dikosongkan. Tersisa akun Admin.s127 dan Wahyu Astuti (OIC).');
+    setTimeout(() => setFeedbackMsg(''), 5000);
+  };
+
+  const handleLoadFullRoster = async () => {
+    await loadFullRoster();
+    setFeedbackMsg('Data lengkap seluruh roster tim SAGI 127 berhasil dimuat.');
     setTimeout(() => setFeedbackMsg(''), 4000);
   };
 
@@ -63,7 +86,7 @@ export const AdminUserManagement: React.FC = () => {
       nik: newNik.trim(),
       name: newName.trim(),
       username,
-      password: 'sagi 127',
+      password: 'sagi127',
       gender: newGender,
       shiftNumber: Number(newShift),
       role: newRole,
@@ -98,13 +121,33 @@ export const AdminUserManagement: React.FC = () => {
           </h1>
         </div>
 
-        <button
-          onClick={() => setIsNewUserModal(true)}
-          className="px-4 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
-        >
-          <UserPlus className="w-4 h-4" />
-          Tambah Anggota Tim
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            className="px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+            title="Kosongkan semua data dan simpan hanya akun admin"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Kosongkan Data
+          </button>
+
+          <button
+            onClick={handleLoadFullRoster}
+            className="px-3 py-2 text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+            title="Muat Roster Lengkap SAGI 127"
+          >
+            <DownloadCloud className="w-3.5 h-3.5" />
+            Muat 80+ Roster
+          </button>
+
+          <button
+            onClick={() => setIsNewUserModal(true)}
+            className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            Tambah Anggota Tim
+          </button>
+        </div>
       </div>
 
       {feedbackMsg && (
@@ -212,10 +255,18 @@ export const AdminUserManagement: React.FC = () => {
                       </button>
                       <button
                         onClick={() => handleResetPassword(u)}
-                        title="Reset Password ke sagi 127"
+                        title="Reset Password ke sagi127"
                         className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-amber-200"
                       >
                         <Key className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setUserToDelete(u)}
+                        disabled={u.username.toLowerCase() === 'admin.s127'}
+                        title={u.username.toLowerCase() === 'admin.s127' ? 'Akun Utama Admin tidak dapat dihapus' : 'Hapus User'}
+                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
@@ -249,6 +300,7 @@ export const AdminUserManagement: React.FC = () => {
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-emerald-600"
                 >
                   <option value="AGENT">Agent</option>
+                  <option value="OIC">Officer In Charge (OIC)</option>
                   <option value="SPV">Supervisor (SPV)</option>
                   <option value="ADMIN">Admin</option>
                 </select>
@@ -382,6 +434,7 @@ export const AdminUserManagement: React.FC = () => {
                     className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-emerald-600"
                   >
                     <option value="AGENT">Agent</option>
+                    <option value="OIC">Officer In Charge (OIC)</option>
                     <option value="SPV">Supervisor (SPV)</option>
                     <option value="ADMIN">Admin</option>
                   </select>
@@ -426,6 +479,74 @@ export const AdminUserManagement: React.FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Hapus Akun Pengguna</h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  Apakah Anda yakin ingin menghapus akun <span className="font-bold text-slate-900">{userToDelete.name}</span> ({userToDelete.username})? Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setUserToDelete(null)}
+                className="px-3.5 py-1.5 text-xs text-slate-600 hover:text-slate-900 rounded-lg"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-xs"
+              >
+                Hapus Akun
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear All Data Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-600 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Kosongkan Semua Data?</h3>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Semua data riwayat log AUX, status realtime agen, dan daftar user dummy akan dihapus bersih. Hanya akun <span className="font-semibold text-slate-900">Admin.s127</span> dan <span className="font-semibold text-slate-900">Wahyu Astuti (OIC)</span> yang akan tersisa.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="px-3.5 py-1.5 text-xs text-slate-600 hover:text-slate-900 rounded-lg"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleClearAllData}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-xs"
+              >
+                Ya, Kosongkan Semua Data
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

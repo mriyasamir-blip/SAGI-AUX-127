@@ -17,13 +17,16 @@ interface AuthContextType {
   logout: () => void;
   updateMyStatus: (newStatus: AuxStatusType) => Promise<void>;
   updateUserRoleOrShift: (user: UserProfile) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
+  clearAllData: () => Promise<void>;
+  loadFullRoster: () => Promise<void>;
   saveConfig: (cfg: SystemConfig) => Promise<void>;
   supervisorResetStatus: (agentId: string, targetStatus?: AuxStatusType) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const CURRENT_USER_SESSION_KEY = 'sagi127_session_user_v1';
+const CURRENT_USER_SESSION_KEY = 'sagi127_session_user_v2';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -104,19 +107,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!matchedUser) {
         return {
           success: false,
-          message: `Username atau NIK "${rawUsername}" tidak ditemukan. Format username: [namadepan]127 (contoh: ofa127, wahyu127, edhi127)`,
+          message: `Username atau NIK "${rawUsername}" tidak ditemukan.`,
         };
       }
 
-      // Check password (default is "sagi 127" or user custom password)
+      // Check password (supports "sagi127" or "sagi 127" or custom password)
+      const cleanInputPw = passwordInput.replace(/\s+/g, '').toLowerCase();
+      const cleanUserPw = matchedUser.password.replace(/\s+/g, '').toLowerCase();
+
       if (
         matchedUser.password !== passwordInput &&
-        passwordInput !== 'sagi 127' &&
-        passwordInput !== 'sagi127'
+        cleanInputPw !== cleanUserPw &&
+        cleanInputPw !== 'sagi127'
       ) {
         return {
           success: false,
-          message: 'Password salah. Password default adalah "sagi 127".',
+          message: 'Password salah. Periksa kembali password Anda.',
         };
       }
 
@@ -182,6 +188,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await storeService.saveUserProfile(user);
   }, []);
 
+  // Delete user profile
+  const deleteUser = useCallback(async (userId: string) => {
+    await storeService.deleteUserProfile(userId);
+  }, []);
+
+  // Reset / Clear all data
+  const clearAllData = useCallback(async () => {
+    await storeService.clearAllData();
+  }, []);
+
+  // Load full roster data
+  const loadFullRoster = useCallback(async () => {
+    await storeService.loadFullRoster();
+  }, []);
+
   // Save updated system config
   const saveConfig = useCallback(async (cfg: SystemConfig) => {
     await storeService.saveSystemConfig(cfg);
@@ -202,6 +223,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         logout,
         updateMyStatus,
         updateUserRoleOrShift,
+        deleteUser,
+        clearAllData,
+        loadFullRoster,
         saveConfig,
         supervisorResetStatus,
       }}

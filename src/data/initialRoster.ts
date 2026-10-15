@@ -153,10 +153,48 @@ export function generateUsername(name: string, existingUsernames: Set<string>): 
   return candidate;
 }
 
-export function buildInitialUsers(): UserProfile[] {
-  const seenUsernames = new Set<string>();
+export const CLEAN_INITIAL_USERS: UserProfile[] = [
+  {
+    id: 'ADMIN.S127',
+    nik: 'ADMIN.S127',
+    name: 'Admin SAGI 127',
+    username: 'Admin.s127',
+    password: 'sagi127',
+    gender: 'Pria',
+    shiftNumber: 1,
+    role: 'ADMIN',
+    division: 'Management & System Admin',
+    supervisorName: '-',
+    status: 'active',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: '202601193',
+    nik: '202601193',
+    name: 'Wahyu Astuti',
+    username: 'wahyu127',
+    password: 'sagi127',
+    gender: 'Wanita',
+    shiftNumber: 15,
+    role: 'OIC',
+    division: 'OIC / Inbound',
+    supervisorName: 'Pustaka Adam',
+    status: 'active',
+    updatedAt: new Date().toISOString(),
+  },
+];
 
-  return RAW_ROSTER_DATA.map((item) => {
+export function buildInitialUsers(): UserProfile[] {
+  return [...CLEAN_INITIAL_USERS];
+}
+
+/**
+ * Optional helper if Admin wishes to re-populate the complete 80+ roster
+ */
+export function buildFullRosterUsers(): UserProfile[] {
+  const seenUsernames = new Set<string>(['admin.s127', 'wahyu127']);
+
+  const rosterUsers = RAW_ROSTER_DATA.map((item) => {
     const username = generateUsername(item.name, seenUsernames);
     
     // Determine Role
@@ -189,16 +227,18 @@ export function buildInitialUsers(): UserProfile[] {
       nik: item.nik,
       name: item.name,
       username,
-      password: 'sagi 127',
+      password: 'sagi127',
       gender: item.gender as 'Pria' | 'Wanita',
       shiftNumber: item.shift,
       role,
       division: item.roleDesc,
       supervisorName: item.spv,
-      status: 'active',
+      status: 'active' as const,
       updatedAt: new Date().toISOString(),
     };
   });
+
+  return [...CLEAN_INITIAL_USERS, ...rosterUsers.filter(u => u.id !== '202601193')];
 }
 
 export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
