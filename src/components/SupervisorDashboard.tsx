@@ -434,7 +434,7 @@ export const SupervisorDashboard: React.FC = () => {
 
                   <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                      <div className="text-[10px] text-slate-400 uppercase font-semibold">Durasi AUX</div>
+                      <div className="text-[10px] text-slate-400 uppercase font-semibold">Durasi Waktu</div>
                       <div className="text-xl font-black font-mono text-slate-900 tabular-nums">
                         {status.currentStatus === 'OFFLINE' ? '--:--' : formatDuration(status.statusStartedAt)}
                       </div>
@@ -479,7 +479,7 @@ export const SupervisorDashboard: React.FC = () => {
                   <th className="py-3 px-3.5 font-bold">Role</th>
                   <th className="py-3 px-3.5 font-bold">Supervisor / OIC</th>
                   <th className="py-3 px-3.5 font-bold">Status Saat Ini</th>
-                  <th className="py-3 px-3.5 text-right font-bold">Durasi AUX</th>
+                  <th className="py-3 px-3.5 text-right font-bold">Durasi Waktu</th>
                   <th className="py-3 px-3.5 text-right font-bold">Aksi SPV</th>
                 </tr>
               </thead>
