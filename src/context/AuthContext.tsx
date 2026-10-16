@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { UserProfile, AgentRealtimeStatus, AuxStatusType, SystemConfig, AuxLogEntry } from '../types';
 import { storeService } from '../services/storeService';
 import { soundSynthesizer } from '../utils/audio';
@@ -22,6 +22,7 @@ interface AuthContextType {
   loadFullRoster: () => Promise<void>;
   saveConfig: (cfg: SystemConfig) => Promise<void>;
   supervisorResetStatus: (agentId: string, targetStatus?: AuxStatusType) => Promise<void>;
+  toggleQueueMode: (active: boolean, message?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -87,6 +88,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       unsubs.forEach((fn) => fn());
     };
   }, []);
+
+  // Alert audio whenever queue mode is activated remotely
+  const prevQueueRef = useRef<boolean | undefined>(undefined);
+  useEffect(() => {
+    if (prevQueueRef.current === false && systemConfig.queueModeActive === true) {
+      soundSynthesizer.playQueueAlertChime();
+    }
+    prevQueueRef.current = !!systemConfig.queueModeActive;
+  }, [systemConfig.queueModeActive]);
 
   // Compute active status for currently logged in user
   const activeStatus = currentUser ? statuses[currentUser.id] || null : null;
@@ -208,6 +218,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await storeService.saveSystemConfig(cfg);
   }, []);
 
+  // Toggle Queue Mode (Trafik Padat)
+  const toggleQueueMode = useCallback(
+    async (active: boolean, message?: string) => {
+      const actorName = currentUser?.name || currentUser?.username || 'Admin';
+      await storeService.toggleQueueMode(active, actorName, message);
+      if (active) {
+        soundSynthesizer.playQueueAlertChime();
+      } else {
+        soundSynthesizer.playStatusChangeChime();
+      }
+    },
+    [currentUser]
+  );
+
   return (
     <AuthContext.Provider
       value={{
@@ -228,6 +252,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         loadFullRoster,
         saveConfig,
         supervisorResetStatus,
+        toggleQueueMode,
       }}
     >
       {children}

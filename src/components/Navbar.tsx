@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { soundSynthesizer } from '../utils/audio';
-import { Volume2, VolumeX, LogOut, ChevronDown, Radio, Users, Shield, UserCheck, Wrench, BarChart3 } from 'lucide-react';
+import { Volume2, VolumeX, LogOut, ChevronDown, Radio, Users, Shield, UserCheck, Wrench, BarChart3, Flame } from 'lucide-react';
 import { SagiLogo } from './SagiLogo';
 
 interface NavbarProps {
@@ -11,7 +11,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, onOpenLoginModal }) => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, systemConfig, toggleQueueMode } = useAuth();
   const [soundActive, setSoundActive] = useState<boolean>(soundSynthesizer.isSoundEnabled());
   const [showSwitchMenu, setShowSwitchMenu] = useState<boolean>(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -148,6 +148,39 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, onOpenL
           >
             {soundActive ? <Volume2 className="w-4 h-4 text-emerald-600" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
           </button>
+
+          {/* Admin Queue Mode Toggle Button */}
+          {currentUser?.role === 'ADMIN' && (
+            <button
+              onClick={() => toggleQueueMode(!systemConfig.queueModeActive)}
+              title={
+                systemConfig.queueModeActive
+                  ? 'Klik untuk mematikan status Queue (Kembali ke Trafik Normal)'
+                  : 'Klik untuk mengaktifkan status Queue (Trafik Sedang Padat)'
+              }
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                systemConfig.queueModeActive
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white animate-pulse border border-rose-700'
+                  : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300'
+              }`}
+            >
+              <Flame className={`w-3.5 h-3.5 ${systemConfig.queueModeActive ? 'text-white fill-current' : 'text-amber-600'}`} />
+              <span className="hidden sm:inline">
+                {systemConfig.queueModeActive ? 'Queue Aktif' : 'Trafik Padat'}
+              </span>
+            </button>
+          )}
+
+          {/* Indicator for Non-Admin when Queue is Active */}
+          {currentUser?.role !== 'ADMIN' && systemConfig.queueModeActive && (
+            <div
+              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1.5 animate-pulse"
+              title="Status Antrean Padat (Queue Mode) sedang aktif"
+            >
+              <Flame className="w-3.5 h-3.5 text-rose-600 fill-current" />
+              <span className="hidden sm:inline font-mono text-[11px]">QUEUE AKTIF</span>
+            </div>
+          )}
 
           {currentUser ? (
             <div className="relative flex items-center gap-2" ref={menuRef}>

@@ -89,6 +89,45 @@ class SoundSynthesizer {
       // Audio not permitted or failed
     }
   }
+
+  /**
+   * Prominent alert chime when Admin activates Queue / Trafik Padat
+   */
+  public playQueueAlertChime() {
+    if (!this.soundEnabled) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const now = this.ctx.currentTime;
+      const osc1 = this.ctx.createOscillator();
+      const osc2 = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc1.type = 'sawtooth';
+      osc2.type = 'sine';
+
+      osc1.frequency.setValueAtTime(880, now); // A5
+      osc1.frequency.setValueAtTime(1046.5, now + 0.15); // C6
+      osc1.frequency.setValueAtTime(880, now + 0.3); // A5
+      osc1.frequency.setValueAtTime(1174.66, now + 0.45); // D6
+
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.setValueAtTime(0.15, now + 0.45);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 0.7);
+      osc2.stop(now + 0.7);
+    } catch {
+      // Audio not permitted
+    }
+  }
 }
 
 export const soundSynthesizer = new SoundSynthesizer();

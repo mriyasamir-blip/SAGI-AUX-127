@@ -17,6 +17,7 @@ import {
 
 interface AgentAuxSummaryCardProps {
   currentStatus: AuxStatusType;
+  statusStartedAt?: string;
   elapsedSeconds: number;
   breakSeconds: number;
   sholatSeconds: number;
@@ -30,6 +31,7 @@ interface AgentAuxSummaryCardProps {
 
 export const AgentAuxSummaryCard: React.FC<AgentAuxSummaryCardProps> = ({
   currentStatus,
+  statusStartedAt,
   elapsedSeconds,
   breakSeconds,
   sholatSeconds,
@@ -195,19 +197,60 @@ export const AgentAuxSummaryCard: React.FC<AgentAuxSummaryCardProps> = ({
 
       {/* Main Clock & Metric Numbers */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-5 items-center">
-        {/* Left Column: Big Task Elapsed Clock */}
+        {/* Left Column: Big Task Elapsed Clock / Ready Clock */}
         <div className="lg:col-span-5 space-y-1.5 text-center sm:text-left">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 justify-center sm:justify-start">
-            <Timer className="w-4 h-4 text-emerald-600" />
-            <span>Durasi Berjalan Sesi Ini</span>
-          </div>
-          <div className="text-5xl sm:text-6xl font-black tracking-tight font-mono text-slate-900 tabular-nums">
-            {formatTime(elapsedSeconds)}
-          </div>
-          <div className="text-xs text-slate-500 flex items-center gap-1.5 justify-center sm:justify-start">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Waktu aktif terhitung seketika</span>
-          </div>
+          {currentStatus === 'OFFLINE' ? (
+            <>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 justify-center sm:justify-start">
+                <PowerOff className="w-4 h-4 text-slate-400" />
+                <span>Status Log Off</span>
+              </div>
+              <div className="text-4xl sm:text-5xl font-black tracking-tight font-mono text-slate-400 tabular-nums">
+                --:--:--
+              </div>
+              <div className="text-xs text-slate-500 flex items-center gap-1.5 justify-center sm:justify-start">
+                <span className="w-2 h-2 rounded-full bg-slate-300" />
+                <span>Log Off (Tidak ada durasi berjalan)</span>
+              </div>
+            </>
+          ) : currentStatus === 'READY' ? (
+            <>
+              <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5 justify-center sm:justify-start">
+                <Clock className="w-4 h-4 text-emerald-600" />
+                <span>Jam Ready (Waktu Mulai)</span>
+              </div>
+              <div className="text-4xl sm:text-5xl font-black tracking-tight font-mono text-emerald-800 tabular-nums flex items-baseline justify-center sm:justify-start gap-2">
+                <span>
+                  {statusStartedAt
+                    ? new Date(statusStartedAt).toLocaleTimeString('id-ID', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      })
+                    : '--:--:--'}
+                </span>
+                <span className="text-sm font-sans font-bold text-emerald-600">WIB</span>
+              </div>
+              <div className="text-xs text-slate-500 flex items-center gap-1.5 justify-center sm:justify-start">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Standby melayani pelanggan · Jam Ready tercatat</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5 justify-center sm:justify-start">
+                <Timer className="w-4 h-4 text-amber-600" />
+                <span>Durasi Waktu AUX</span>
+              </div>
+              <div className="text-5xl sm:text-6xl font-black tracking-tight font-mono text-slate-900 tabular-nums">
+                {formatTime(elapsedSeconds)}
+              </div>
+              <div className="text-xs text-slate-500 flex items-center gap-1.5 justify-center sm:justify-start">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>Waktu AUX aktif terhitung seketika</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right Column: Visual Quota Limit Cards */}

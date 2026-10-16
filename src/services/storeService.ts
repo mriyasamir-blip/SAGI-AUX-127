@@ -29,6 +29,23 @@ const LOCAL_STORAGE_STATUS_KEY = 'sagi127_status_v2';
 const LOCAL_STORAGE_LOGS_KEY = 'sagi127_logs_v2';
 const LOCAL_STORAGE_CONFIG_KEY = 'sagi127_config_v2';
 
+/**
+ * Remove any undefined values recursively so Firestore setDoc never fails
+ */
+function sanitizeForFirestore<T extends Record<string, any>>(obj: T): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        result[key] = sanitizeForFirestore(value);
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result;
+}
+
 class StoreService {
   private initialUsers: UserProfile[] = [];
   private isInitialized = false;
@@ -410,7 +427,7 @@ class StoreService {
 
     // Sync to Firestore
     try {
-      await setDoc(doc(db, 'agent_status', agentId), updatedStatus, { merge: true });
+      await setDoc(doc(db, 'agent_status', agentId), sanitizeForFirestore(updatedStatus), { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `agent_status/${agentId}`);
     }
@@ -430,7 +447,7 @@ class StoreService {
     this.setLocalUsers(users);
 
     try {
-      await setDoc(doc(db, 'users', user.id), user, { merge: true });
+      await setDoc(doc(db, 'users', user.id), sanitizeForFirestore(user), { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `users/${user.id}`);
     }
@@ -440,11 +457,47 @@ class StoreService {
    * Save System Configuration
    */
   public async saveSystemConfig(config: SystemConfig): Promise<void> {
-    const updated = { ...config, updatedAt: new Date().toISOString() };
+    const updated: SystemConfig = {
+      ...config,
+      queueModeActive: !!config.queueModeActive,
+      queueModeStartedAt: config.queueModeStartedAt || '',
+      queueModeActivatedBy: config.queueModeActivatedBy || '',
+      queueMessage: config.queueMessage || '',
+      updatedAt: new Date().toISOString(),
+    };
     this.setLocalConfig(updated);
 
     try {
-      await setDoc(doc(db, 'system_config', 'default'), updated, { merge: true });
+      await setDoc(doc(db, 'system_config', 'default'), sanitizeForFirestore(updated), { merge: true });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'system_config/default');
+    }
+  }
+
+  /**
+   * Toggle Queue Mode (Trafik Padat)
+   */
+  public async toggleQueueMode(
+    active: boolean,
+    activatedBy: string = 'Admin',
+    message?: string
+  ): Promise<void> {
+    const currentConfig = this.getLocalConfig() || DEFAULT_SYSTEM_CONFIG;
+    const nowIso = new Date().toISOString();
+    const updated: SystemConfig = {
+      ...currentConfig,
+      queueModeActive: active,
+      queueModeStartedAt: active ? nowIso : '',
+      queueModeActivatedBy: active ? activatedBy : '',
+      queueMessage: active
+        ? message || 'Trafik antrean panggilan/chat sedang padat. Seluruh agent standby melayani pelanggan.'
+        : '',
+      updatedAt: nowIso,
+    };
+    this.setLocalConfig(updated);
+
+    try {
+      await setDoc(doc(db, 'system_config', 'default'), sanitizeForFirestore(updated), { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'system_config/default');
     }

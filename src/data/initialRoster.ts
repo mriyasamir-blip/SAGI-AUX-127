@@ -268,5 +268,9 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
     16: { name: 'Shift 16', hours: '09:30 - 18:30' },
   },
   soundAlertsEnabled: true,
+  queueModeActive: false,
+  queueModeStartedAt: '',
+  queueModeActivatedBy: '',
+  queueMessage: '',
   updatedAt: new Date().toISOString(),
 };

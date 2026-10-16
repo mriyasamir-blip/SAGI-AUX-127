@@ -73,5 +73,10 @@ export interface SystemConfig {
   auxThresholds: AuxThresholdConfig;
   shiftSchedule: Record<number, { name: string; hours: string }>;
   soundAlertsEnabled: boolean;
+  queueModeActive?: boolean; // Trafik padat / queue aktif
+  queueModeStartedAt?: string; // ISO string saat queue diaktifkan
+  queueModeActivatedBy?: string; // Nama / username admin yang mengaktifkan
+  queueMessage?: string; // Pesan khusus queue
   updatedAt: string;
 }
+

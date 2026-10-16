@@ -12,10 +12,12 @@ import {
   Activity,
   CheckCircle,
   Users,
+  Clock,
+  Flame,
 } from 'lucide-react';
 
 export const SupervisorDashboard: React.FC = () => {
-  const { users, statuses, systemConfig, supervisorResetStatus } = useAuth();
+  const { users, statuses, systemConfig, supervisorResetStatus, currentUser, toggleQueueMode } = useAuth();
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedDivision, setSelectedDivision] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
@@ -244,6 +246,81 @@ export const SupervisorDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Queue Mode Status & Admin Control Widget */}
+      <div
+        className={`border rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-xs ${
+          systemConfig.queueModeActive
+            ? 'bg-gradient-to-r from-rose-50 via-amber-50 to-rose-50 border-rose-300 ring-2 ring-rose-500/20'
+            : 'bg-white border-slate-200'
+        }`}
+      >
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div
+            className={`p-3 rounded-xl shrink-0 flex items-center justify-center ${
+              systemConfig.queueModeActive
+                ? 'bg-rose-500 text-white animate-pulse shadow-sm'
+                : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            <Flame className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Status Antrean & Trafik Layanan
+              </span>
+              <span
+                className={`text-[10px] font-extrabold font-mono px-2.5 py-0.5 rounded-full ${
+                  systemConfig.queueModeActive
+                    ? 'bg-rose-100 text-rose-800 border border-rose-300 animate-pulse font-bold'
+                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold'
+                }`}
+              >
+                {systemConfig.queueModeActive ? 'TRAFIK PADAT (QUEUE AKTIF)' : 'TRAFIK NORMAL'}
+              </span>
+              {systemConfig.queueModeActive && systemConfig.queueModeStartedAt && (
+                <span className="text-[11px] text-rose-700 font-mono font-medium">
+                  Sejak{' '}
+                  {new Date(systemConfig.queueModeStartedAt).toLocaleTimeString('id-ID', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}{' '}
+                  WIB
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+              {systemConfig.queueModeActive
+                ? 'Mode Queue sedang aktif: Seluruh device agent menerima notifikasi trafik padat dan opsi AUX Istirahat dikunci sementara agar layanan antrean maksimal.'
+                : 'Trafik panggilan dan chat normal. Agent dapat menggunakan kuota AUX sesuai ketentuan SLA.'}
+            </p>
+          </div>
+        </div>
+
+        {/* Action Button for Admin */}
+        {currentUser?.role === 'ADMIN' ? (
+          <button
+            onClick={() => toggleQueueMode(!systemConfig.queueModeActive)}
+            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold shadow-xs transition-colors shrink-0 flex items-center gap-2 cursor-pointer ${
+              systemConfig.queueModeActive
+                ? 'bg-rose-600 hover:bg-rose-700 text-white border border-rose-700 shadow-sm'
+                : 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+            }`}
+          >
+            <Flame className="w-4 h-4 fill-current" />
+            <span>
+              {systemConfig.queueModeActive
+                ? 'Matikan Mode Queue (Trafik Normal)'
+                : 'Aktifkan Queue (Trafik Padat)'}
+            </span>
+          </button>
+        ) : systemConfig.queueModeActive ? (
+          <span className="text-xs font-bold text-rose-700 bg-rose-100/90 px-3 py-1.5 rounded-xl border border-rose-200 shrink-0">
+            Mode Queue Aktif
+          </span>
+        ) : null}
+      </div>
+
       {/* KPI Cards Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
@@ -434,9 +511,26 @@ export const SupervisorDashboard: React.FC = () => {
 
                   <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                      <div className="text-[10px] text-slate-400 uppercase font-semibold">Durasi Waktu</div>
+                      <div className="text-[10px] text-slate-400 uppercase font-semibold">
+                        {status.currentStatus === 'READY' ? 'Jam Ready' : 'Durasi Waktu'}
+                      </div>
                       <div className="text-xl font-black font-mono text-slate-900 tabular-nums">
-                        {status.currentStatus === 'OFFLINE' ? '--:--' : formatDuration(status.statusStartedAt)}
+                        {status.currentStatus === 'OFFLINE' ? (
+                          <span className="text-slate-400 font-sans text-sm font-semibold">-</span>
+                        ) : status.currentStatus === 'READY' ? (
+                          <span className="text-emerald-700 text-base font-bold flex items-center gap-1 font-mono">
+                            <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                            {status.statusStartedAt
+                              ? new Date(status.statusStartedAt).toLocaleTimeString('id-ID', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                })
+                              : '-'}
+                          </span>
+                        ) : (
+                          formatDuration(status.statusStartedAt)
+                        )}
                       </div>
                     </div>
 
@@ -479,7 +573,7 @@ export const SupervisorDashboard: React.FC = () => {
                   <th className="py-3 px-3.5 font-bold">Role</th>
                   <th className="py-3 px-3.5 font-bold">Supervisor / OIC</th>
                   <th className="py-3 px-3.5 font-bold">Status Saat Ini</th>
-                  <th className="py-3 px-3.5 text-right font-bold">Durasi Waktu</th>
+                  <th className="py-3 px-3.5 text-right font-bold">Durasi Waktu / Jam Ready</th>
                   <th className="py-3 px-3.5 text-right font-bold">Aksi SPV</th>
                 </tr>
               </thead>
@@ -510,7 +604,22 @@ export const SupervisorDashboard: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3 px-3.5 text-right font-bold text-slate-900 tabular-nums">
-                        {status.currentStatus === 'OFFLINE' ? '--:--' : formatDuration(status.statusStartedAt)}
+                        {status.currentStatus === 'OFFLINE' ? (
+                          <span className="text-slate-400 font-sans font-normal">-</span>
+                        ) : status.currentStatus === 'READY' ? (
+                          <span className="text-emerald-700 font-mono text-xs font-bold inline-flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-emerald-600" />
+                            {status.statusStartedAt
+                              ? new Date(status.statusStartedAt).toLocaleTimeString('id-ID', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                })
+                              : '-'}
+                          </span>
+                        ) : (
+                          formatDuration(status.statusStartedAt)
+                        )}
                       </td>
                       <td className="py-3 px-3.5 text-right font-sans">
                         {status.currentStatus !== 'READY' && status.currentStatus !== 'OFFLINE' ? (

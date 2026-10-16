@@ -8,6 +8,7 @@ import { AdminConfig } from './components/AdminConfig';
 import { AdminReports } from './components/AdminReports';
 import { LoginModal } from './components/LoginModal';
 import { NotificationBanner } from './components/NotificationBanner';
+import { QueueAlertBanner } from './components/QueueAlertBanner';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { Loader2 } from 'lucide-react';
 
@@ -60,6 +61,9 @@ const AppContent: React.FC = () => {
         onSelectTab={(tab) => setCurrentTab(tab)}
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
       />
+
+      {/* Real-time High Traffic Queue Alert Banner */}
+      <QueueAlertBanner />
 
       {/* Main View Port for Authenticated Users */}
       <main className="flex-1 pb-16">

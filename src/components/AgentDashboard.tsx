@@ -11,20 +11,31 @@ import {
   MessageSquare,
   PowerOff,
   History,
+  Lock,
+  Flame,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const AgentDashboard: React.FC = () => {
   const { currentUser, activeStatus, updateMyStatus, systemConfig, recentLogs } = useAuth();
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  const [queueBlockedNotice, setQueueBlockedNotice] = useState<string | null>(null);
 
-  // Timer ticker
+  const currentStatus = activeStatus?.currentStatus || 'OFFLINE';
+
+  // Timer ticker only ticks for active AUX statuses (NOT for Log Off or Ready)
   useEffect(() => {
+    if (
+      !activeStatus?.statusStartedAt ||
+      currentStatus === 'OFFLINE' ||
+      currentStatus === 'READY'
+    ) {
+      setElapsedSeconds(0);
+      return;
+    }
+
     const calculateElapsed = () => {
-      if (!activeStatus?.statusStartedAt) {
-        setElapsedSeconds(0);
-        return;
-      }
       const start = new Date(activeStatus.statusStartedAt).getTime();
       const now = Date.now();
       setElapsedSeconds(Math.max(0, Math.floor((now - start) / 1000)));
@@ -33,7 +44,7 @@ export const AgentDashboard: React.FC = () => {
     calculateElapsed();
     const interval = setInterval(calculateElapsed, 1000);
     return () => clearInterval(interval);
-  }, [activeStatus?.statusStartedAt]);
+  }, [activeStatus?.statusStartedAt, currentStatus]);
 
   if (!currentUser) {
     return (
@@ -44,8 +55,6 @@ export const AgentDashboard: React.FC = () => {
       </div>
     );
   }
-
-  const currentStatus = activeStatus?.currentStatus || 'OFFLINE';
 
   // Format seconds to HH:MM:SS
   const formatTime = (totalSec: number) => {
@@ -90,6 +99,16 @@ export const AgentDashboard: React.FC = () => {
   // Handle status toggle
   const handleStatusChange = async (newStatus: AuxStatusType) => {
     if (isUpdating || currentStatus === newStatus) return;
+
+    // Block Istirahat (BREAK) if Queue mode is active
+    if (newStatus === 'BREAK' && systemConfig.queueModeActive) {
+      setQueueBlockedNotice(
+        'Tombol Istirahat dinonaktifkan oleh Admin karena antrean trafik sedang padat (Queue Mode). Mohon tetap READY.'
+      );
+      return;
+    }
+
+    setQueueBlockedNotice(null);
     setIsUpdating(true);
     try {
       await updateMyStatus(newStatus);
@@ -222,6 +241,7 @@ export const AgentDashboard: React.FC = () => {
       {/* Visual Summary Component for Agent Dashboard */}
       <AgentAuxSummaryCard
         currentStatus={currentStatus}
+        statusStartedAt={activeStatus?.statusStartedAt}
         elapsedSeconds={elapsedSeconds}
         breakSeconds={breakSeconds}
         sholatSeconds={sholatSeconds}
@@ -232,6 +252,53 @@ export const AgentDashboard: React.FC = () => {
         routineQuotaMinutes={systemConfig.auxThresholds.COMBINED_ROUTINE_QUOTA || 75}
         coachingQuotaMinutes={systemConfig.auxThresholds.COACHING || 45}
       />
+
+      {/* Queue Mode Warning for Agents */}
+      {systemConfig.queueModeActive && (
+        <div className="bg-rose-50 border border-rose-300 rounded-2xl p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-rose-950 shadow-xs animate-in fade-in">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2 rounded-xl bg-rose-100 text-rose-700 shrink-0">
+              <Flame className="w-5 h-5 animate-pulse text-rose-600" />
+            </div>
+            <div>
+              <div className="font-extrabold text-sm text-rose-900 flex items-center gap-2">
+                <span>STATUS QUEUE (TRAFIK PADAT) AKTIF</span>
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-rose-200/80 text-rose-900 font-bold">
+                  Prioritas Layanan
+                </span>
+              </div>
+              <p className="text-xs text-rose-700 mt-0.5">
+                Admin telah mengaktifkan mode trafik padat. Tombol AUX Istirahat dikunci sementara agar seluruh agent dapat melayani antrean pelanggan.
+              </p>
+            </div>
+          </div>
+          {currentStatus !== 'READY' && (
+            <button
+              onClick={() => handleStatusChange('READY')}
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Beralih ke READY</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Toast Notice if agent tries to click locked Istirahat */}
+      {queueBlockedNotice && (
+        <div className="bg-amber-50 border border-amber-300 text-amber-900 rounded-xl p-3 text-xs flex items-center justify-between gap-2 shadow-xs">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{queueBlockedNotice}</span>
+          </div>
+          <button
+            onClick={() => setQueueBlockedNotice(null)}
+            className="text-amber-700 font-bold px-2 py-0.5 hover:bg-amber-100 rounded-lg"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
 
       {/* AUX Switcher Grid */}
       <div className="space-y-3">
@@ -245,31 +312,68 @@ export const AgentDashboard: React.FC = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
           {statusDefinitions.map((item) => {
             const isActive = currentStatus === item.type || (item.type === 'TRAINING' && currentStatus === 'BRIEFING');
+            const isBreakDisabled = systemConfig.queueModeActive && item.type === 'BREAK';
+
             return (
               <button
                 key={item.type}
-                disabled={isUpdating}
-                onClick={() => handleStatusChange(item.type)}
-                className={`p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between min-h-[120px] relative shadow-xs cursor-pointer ${
-                  isActive ? item.activeCardStyle : item.cardStyle
-                }`}
+                disabled={isUpdating || (isBreakDisabled && !isActive)}
+                onClick={() => {
+                  if (isBreakDisabled && !isActive) {
+                    setQueueBlockedNotice(
+                      'Tombol Istirahat dinonaktifkan oleh Admin karena antrean trafik sedang padat (Queue Mode).'
+                    );
+                    return;
+                  }
+                  handleStatusChange(item.type);
+                }}
+                className={`p-4 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between min-h-[120px] relative shadow-xs ${
+                  isBreakDisabled && !isActive
+                    ? 'bg-slate-50/80 border-rose-200 text-slate-400 opacity-70 cursor-not-allowed'
+                    : 'cursor-pointer'
+                } ${isActive ? item.activeCardStyle : isBreakDisabled ? '' : item.cardStyle}`}
+                title={
+                  isBreakDisabled
+                    ? 'AUX Istirahat dinonaktifkan saat antrean padat (Queue)'
+                    : item.label
+                }
               >
                 <div className="flex items-center justify-between">
-                  <div className="p-1 rounded-lg bg-slate-100/60">{item.icon}</div>
+                  <div className="p-1 rounded-lg bg-slate-100/60">
+                    {isBreakDisabled && !isActive ? (
+                      <Lock className="w-5 h-5 text-rose-500" />
+                    ) : (
+                      item.icon
+                    )}
+                  </div>
                   {isActive && (
                     <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-600 text-white rounded-full font-bold shadow-xs">
                       AKTIF
                     </span>
                   )}
-                  {!isActive && item.badgeText && (
+                  {!isActive && isBreakDisabled && (
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded font-bold border border-rose-200">
+                      Terkunci (Queue)
+                    </span>
+                  )}
+                  {!isActive && !isBreakDisabled && item.badgeText && (
                     <span className="text-[9px] font-mono px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-medium">
                       {item.badgeText}
                     </span>
                   )}
                 </div>
                 <div className="mt-3">
-                  <div className="text-sm font-extrabold tracking-tight text-slate-900">{item.label}</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{item.sublabel}</div>
+                  <div className="text-sm font-extrabold tracking-tight text-slate-900 flex items-center gap-1.5">
+                    <span>{item.label}</span>
+                    {isBreakDisabled && !isActive && (
+                      <Lock className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    )}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                    {isBreakDisabled && !isActive
+                      ? 'Terkunci saat trafik padat'
+                      : item.sublabel}
+                  </div>
                 </div>
               </button>
             );
